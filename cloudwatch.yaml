@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This template create an CloudwatchAlarm
+Parameters:
+
+  ExportSNSname:
+    Description: The name of the SNS
+    Type: String
+
+  Exportautoscalingname:
+    Description: the AutoScalingGroupName
+    Type: String
+
+Resources:
+  CPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: CPU alarm for my instance
+      AlarmActions:
+      - !Ref  ExportSNSname
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '300'
+      EvaluationPeriods: '2'
+      Threshold: '60'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref Exportautoscalingname
+
+
+  ASGScalingPolicyHigh: 
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties: 
+      AdjustmentType: "ChangeInCapacity"
+      PolicyType: "SimpleScaling"
+      Cooldown: "300"
+      AutoScalingGroupName: !Ref Exportautoscalingname
+      ScalingAdjustment: 1

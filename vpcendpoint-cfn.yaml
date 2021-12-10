@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS CloudFormation  for endpoint and update route table
+Metadata:
+  RevisionDate: 26-November-2021
+Parameters:
+  VpcId:
+    Description: VPC Id to associate with target group. (e.g. vpc-a123baa3 )
+    Type: AWS::EC2::VPC::Id
+    ConstraintDescription: Must be a valid VPC Id
+
+  GwlbSubnets1:
+    Description:  List of Subnet to associate with endpoint, must select only 1 subnet for each endpoint
+    Type:  AWS::EC2::Subnet::Id
+    ConstraintDescription: Must be a valid list of subnet ids
+
+  GwlbSubnets2:
+    Description: Subnet to associate with endpoint, must select only 1 subnet for each endpoint
+    Type: AWS::EC2::Subnet::Id
+    ConstraintDescription: Must be a valid list of subnet ids
+
+  
+  EndpointServiceName:
+    Type: String
+    Description: Enter the endpoint service name
+
+
+Resources:
+  Endpoint1:
+   Type: AWS::EC2::VPCEndpoint
+   Properties: 
+     ServiceName: !Ref EndpointServiceName
+     SubnetIds: 
+        - !Ref GwlbSubnets1
+     VpcEndpointType: GatewayLoadBalancer 
+     VpcId: !Ref VpcId
+     
+
+
+  Endpoint2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties: 
+      ServiceName: !Ref EndpointServiceName
+      SubnetIds: 
+         - !Ref GwlbSubnets2
+      VpcEndpointType: GatewayLoadBalancer 
+      VpcId: !Ref VpcId

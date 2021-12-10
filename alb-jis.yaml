@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: This template create an Application Load Balancer
+
+Metadata:
+  AWS::CloudFormation::Interface: 
+    ParameterGroups:
+      - 
+        Label: 
+          default: "Export VPC Stack Name"
+        Parameters:
+          - ExportVpcStackName
+
+Parameters:
+
+  ExportVpcStackName:
+    Description: The name of the vpc stack that exports values
+    Type: String
+
+Resources:
+#Create an Application Load Balancer
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: MyApplicationLoadBalancer
+      SecurityGroups:
+        - Fn::ImportValue: !Sub ${ExportVpcStackName}-SecurityGroup
+      Subnets: 
+        - Fn::ImportValue: !Sub ${ExportVpcStackName}-PublicSubnet1
+        - Fn::ImportValue: !Sub ${ExportVpcStackName}-PublicSubnet2
+
+#Create a Listener on Port 80
+  ALBListenerNoSslCertificate:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        #- RedirectConfig:
+         #   Host: '#{host}'
+          #  Path: '/#{path}'
+           # Port: '443'
+            #Protocol: HTTPS
+            #StatusCode: HTTP_301
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+#Create a Listener on Port 443
+#  ALBListenerSslCertificate:
+#    Type : AWS::ElasticLoadBalancingV2::Listener
+#    Properties:
+#      DefaultActions:
+#        - Type: forward
+#          TargetGroupArn: !Ref ALBTargetGroup
+#      LoadBalancerArn: !Ref ApplicationLoadBalancer
+#      Port: 443
+#      Protocol: HTTPS
+
+# Create a Target Group
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200,302
+      Name: MyWebServers2
+      Port: 80
+      Protocol: HTTP
+      Targets:
+        - Id: !Ref EC2Instance1
+          Port: 80
+        - Id: !Ref EC2Instance2
+          Port: 80
+      TargetType: instance    
+      UnhealthyThresholdCount: 5
+      VpcId:
+        Fn::ImportValue: !Sub ${ExportVpcStackName}-VPC
+
+  EC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId:
+        Fn::ImportValue: !Sub ${ExportVpcStackName}-PublicSubnet1
+      SecurityGroupIds:
+        - Fn::ImportValue: !Sub ${ExportVpcStackName}-SecurityGroup
+      KeyName: test-orgon
+      ImageId: ami-090717c950a5c34d3
+      Tags:
+        - Key: Name
+          Value: EC2 | Private Subnet 1
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            sudo su
+            apt  update -y
+            apt install apache2 -y
+            echo "Healthy1" > /var/www/html/index.html
+            systemctl start apache2
+     
+
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      SubnetId:
+        Fn::ImportValue: !Sub ${ExportVpcStackName}-PublicSubnet2
+      SecurityGroupIds:
+        - Fn::ImportValue: !Sub ${ExportVpcStackName}-SecurityGroup
+      KeyName: test-orgon
+      ImageId: ami-090717c950a5c34d3
+      Tags:
+        - Key: Name
+          Value: EC2 | Private Subnet 2
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            sudo su
+            apt update -y
+            apt install -y apache2
+            echo "Healthy" > /var/www/html/index.html
+            systemctl start apache2
+Outputs:
+ #Export VPC ID
+#   VPC:
+#     Description: VPC ID
+#     Export:
+#       Name: !Sub ${AWS::StackName}-VPC
+#     Value: !Ref VPC
+   Targets:
+     Description: target-arn
+     Export:
+       Name : targer-arns
+     Value: !Ref ALBTargetGroup

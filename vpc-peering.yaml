@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: vpc peering 
+Resources: 
+  VPC:
+     Type: AWS::EC2::VPC
+     Properties:
+       CidrBlock: 10.100.0.0/16
+       EnableDnsSupport: true
+       EnableDnsHostnames: true
+       Tags:
+         - Key: Name
+           Value: 1-jishoy-vpc
+           
+  InternetGateway:
+     Type: AWS::EC2::InternetGateway
+     Properties:
+       Tags:
+         - Key: Name
+           Value: jishoy-vpc2
+           
+  InternetGatewayAttachment:
+     Type: AWS::EC2::VPCGatewayAttachment
+     Properties:
+       InternetGatewayId: !Ref InternetGateway
+       VpcId: !Ref VPC
+      
+      
+  PublicSubnet1:
+     Type: AWS::EC2::Subnet
+     Properties:
+       VpcId: !Ref VPC
+       AvailabilityZone: !Select [ 0, !GetAZs '' ]
+       CidrBlock: 10.100.1.0/24
+       MapPublicIpOnLaunch: true
+       Tags:
+         - Key: Name
+           Value: First-Instance
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: vpc-route
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicRoute1:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PublicRouteTable
+        DestinationCidrBlock: 10.200.0.0/16
+        VpcPeeringConnectionId: !Ref Peerings
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  SecurityGroup:
+     Type:  AWS::EC2::SecurityGroup
+     Properties:
+      GroupDescription: Enable SSH and web
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 10.200.0.0/16
+
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 42.111.224.39/32
+
+  EC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-03d5c68bab01f3496
+      InstanceType: t2.micro
+      KeyName: test-orgon
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds: 
+        - !Ref SecurityGroup
+
+  VPC2:
+     Type: AWS::EC2::VPC
+     Properties:
+       CidrBlock: 10.200.0.0/16
+       EnableDnsSupport: true
+       EnableDnsHostnames: true
+       Tags:
+         - Key: Name
+           Value: 2-jishoy-vpc
+
+  InternetGateway2:
+     Type: AWS::EC2::InternetGateway
+     Properties:
+       Tags:
+         - Key: Name
+           Value: jishoy-vpc2
+           
+  InternetGatewayAttachment2:
+     Type: AWS::EC2::VPCGatewayAttachment
+     Properties:
+       InternetGatewayId: !Ref InternetGateway2
+       VpcId: !Ref VPC2
+
+  PublicSubnet2:
+     Type: AWS::EC2::Subnet
+     Properties:
+       VpcId: !Ref VPC2
+       AvailabilityZone: !Select [ 1, !GetAZs '' ]
+       CidrBlock: 10.200.1.0/24
+       MapPublicIpOnLaunch: true
+       Tags:
+         - Key: Name
+           Value: Second-Instance
+
+
+  PublicRouteTable2:
+     Type: AWS::EC2::RouteTable
+     Properties:
+      VpcId: !Ref VPC2
+      Tags:
+        - Key: Name
+          Value: vpc-route2
+
+  PublicRoute2:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PublicRouteTable2
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref InternetGateway2
+
+  PublicRoute3:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref PublicRouteTable2
+        DestinationCidrBlock: 10.100.0.0/16
+        VpcPeeringConnectionId: !Ref Peerings
+
+
+  PublicSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable2
+      SubnetId: !Ref PublicSubnet2
+
+  SecurityGroup2:
+     Type:  AWS::EC2::SecurityGroup
+     Properties:
+      GroupDescription: Enable SSH and web
+      VpcId: !Ref VPC2
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 10.100.0.0/16
+
+        # - IpProtocol: ssh
+        #   FromPort: -1
+        #   ToPort: -1
+        #   CidrIp: 10.200.0.0/16
+   
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-03d5c68bab01f3496
+      InstanceType: t2.micro
+      KeyName: test-orgon
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroupIds: 
+        - !Ref SecurityGroup2
+  
+  Peerings:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      PeerVpcId: !Ref VPC
+      VpcId: !Ref VPC2
+        
